@@ -1,4 +1,4 @@
-package com.despia.android.demo
+package com.despia.android.starter
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -11,14 +11,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.despia.android.demo.ui.theme.DandroiddemoTheme
+import com.despia.android.starter.ui.theme.DAndroidStarterTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            DandroiddemoTheme {
+            DAndroidStarterTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Greeting(
                         name = "Android",
@@ -41,7 +41,7 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
-    DandroiddemoTheme {
+    DAndroidStarterTheme {
         Greeting("Android")
     }
 }

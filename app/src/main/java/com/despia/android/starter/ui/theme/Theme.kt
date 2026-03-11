@@ -1,4 +1,4 @@
-package com.despia.android.demo.ui.theme
+package com.despia.android.starter.ui.theme
 
 import android.app.Activity
 import android.os.Build
@@ -34,7 +34,7 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun DandroiddemoTheme(
+fun DAndroidStarterTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,

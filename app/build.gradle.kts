@@ -4,8 +4,8 @@ plugins {
 }
 
 android {
-    val appId = project.findProperty("APP_ID") as? String ?: "com.despia.android.demo"
-    namespace = "com.despia.android.demo" // Code namespace stays original
+    val appId = project.findProperty("APP_ID") as? String ?: "com.despia.android.starter"
+    namespace = "com.despia.android.starter" // Code namespace stays original
     compileSdk {
         version = release(36) {
             minorApiLevel = 1

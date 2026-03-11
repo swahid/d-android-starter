@@ -1,4 +1,4 @@
-package com.despia.android.demo
+package com.despia.android.starter
 
 import org.junit.Test
 

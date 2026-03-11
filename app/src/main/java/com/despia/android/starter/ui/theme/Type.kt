@@ -1,4 +1,4 @@
-package com.despia.android.demo.ui.theme
+package com.despia.android.starter.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

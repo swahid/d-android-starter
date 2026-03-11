@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "d-android-demo"
+rootProject.name = "d-android-starter"
 include(":app")
