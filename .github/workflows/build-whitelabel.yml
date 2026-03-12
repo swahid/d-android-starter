@@ -23,6 +23,14 @@ on:
         description: 'Key Password'
         required: true
         type: string
+      client_id:
+        description: 'Client ID for tracking'
+        required: true
+        type: string
+      webhook_url:
+        description: 'Webhook URL to notify after build'
+        required: true
+        type: string
 
 jobs:
   build:
@@ -42,11 +50,13 @@ jobs:
         run: chmod +x gradlew
 
       - name: Download Keystore
+        id: download-keystore
         run: |
           # Download the keystore file to the app directory
           curl -L "${{ github.event.inputs.keystore_url }}" -o app/release.jks
 
       - name: Build Signed AAB
+        id: build-aab
         run: |
           # Build the AAB with dynamic package name and signing info
           ./gradlew :app:bundleRelease \
@@ -57,7 +67,50 @@ jobs:
             -PKEY_PASSWORD="${{ github.event.inputs.key_password }}"
 
       - name: Upload Signed AAB
+        id: upload-aab
         uses: actions/upload-artifact@v4
         with:
           name: app-release-${{ github.event.inputs.package_name }}
           path: app/build/outputs/bundle/release/*.aab
+          retention-days: 1
+
+      - name: Send Build Webhook
+        if: always()
+        run: |
+          CREATED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          EXPIRE_AT=$(date -u -d "+1 day" +"%Y-%m-%dT%H:%M:%SZ")
+          
+          if [[ "${{ job.status }}" == "success" ]]; then
+            STATUS="true"
+            MESSAGE="Success"
+            URL="${{ steps.upload-aab.outputs.artifact-url }}"
+          else
+            STATUS="false"
+            URL=""
+            EXPIRE_AT=""
+            
+            # Determine which step failed
+            if [[ "${{ steps.download-keystore.outcome }}" == "failure" ]]; then
+              MESSAGE="Failed: Keystore download error (Check your URL)"
+            elif [[ "${{ steps.build-aab.outcome }}" == "failure" ]]; then
+              MESSAGE="Failed: Gradle build error (Check package name or signing info)"
+            elif [[ "${{ steps.upload-aab.outcome }}" == "failure" ]]; then
+              MESSAGE="Failed: Artifact upload error"
+            else
+              MESSAGE="Failed: Unknown build error or setup failure"
+            fi
+          fi
+          
+          curl -X POST "${{ github.event.inputs.webhook_url }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF
+          {
+            "status": $STATUS,
+            "message": "$MESSAGE",
+            "client_id": "${{ github.event.inputs.client_id }}",
+            "build_id": "${{ github.run_id }}",
+            "artifeact_url": "$URL",
+            "created_at": "$CREATED_AT",
+            "expire_at": "$EXPIRE_AT"
+          }
+          EOF
