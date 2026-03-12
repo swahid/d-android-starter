@@ -32,9 +32,12 @@ on:
         required: true
         type: string
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true   # Fix Node.js 20 deprecation warnings
+
 jobs:
   build:
-    runs-on: macos-latest # Uses Apple Silicon (M1/M2) for faster compilation
+    runs-on: macos-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -44,27 +47,51 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
+          # ✅ This caches the JDK download itself
+          cache: 'gradle'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+      # ✅ Cache Gradle wrapper binary (~/.gradle/wrapper)
+      # This is the main fix — prevents re-downloading gradle-X.X-bin.zip every run
+      - name: Cache Gradle Wrapper
+        uses: actions/cache@v4
         with:
-          gradle-version: '9.3.1'
-          cache-read-only: false
+          path: ~/.gradle/wrapper
+          key: gradle-wrapper-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-wrapper-
+
+      # ✅ Cache Gradle dependencies (~/.gradle/caches)
+      - name: Cache Gradle Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/notifications
+          key: gradle-deps-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
+          restore-keys: |
+            gradle-deps-${{ runner.os }}-
+
+      # ✅ Removed gradle-version — let the wrapper in your repo control the version
+      # Removed setup-gradle action entirely since we handle caching manually above
+      # The setup-gradle action's built-in cache can conflict with manual cache steps
+
+      - name: Grant Gradle Execute Permission
+        run: chmod +x gradlew
 
       - name: Download Keystore
         id: download-keystore
         run: |
-          # Download the keystore file to the app directory
           curl -L "${{ github.event.inputs.keystore_url }}" -o app/release.jks
 
       - name: Build Signed AAB
         id: build-aab
         run: |
-          # Leverage the Configuration Cache and Parallel execution on Apple Silicon
-          gradle :app:bundleRelease \
+          # ✅ Use ./gradlew (not bare 'gradle') so wrapper is used and cache hits apply
+          ./gradlew :app:bundleRelease \
             --build-cache \
             --configuration-cache \
             --parallel \
+            --no-daemon \
             -PAPP_ID="${{ github.event.inputs.package_name }}" \
             -PKS_FILE="release.jks" \
             -PKS_PASSWORD="${{ github.event.inputs.keystore_password }}" \
@@ -83,9 +110,8 @@ jobs:
         if: always()
         run: |
           CREATED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          # macOS BSD date uses -v for arithmetic
           EXPIRE_AT=$(date -u -v+1d +"%Y-%m-%dT%H:%M:%SZ")
-          
+
           if [[ "${{ job.status }}" == "success" ]]; then
             STATUS="true"
             MESSAGE="Success"
@@ -94,8 +120,7 @@ jobs:
             STATUS="false"
             URL=""
             EXPIRE_AT=""
-            
-            # Determine which step failed
+
             if [[ "${{ steps.download-keystore.outcome }}" == "failure" ]]; then
               MESSAGE="Failed: Keystore download error (Check your URL)"
             elif [[ "${{ steps.build-aab.outcome }}" == "failure" ]]; then
@@ -106,7 +131,7 @@ jobs:
               MESSAGE="Failed: Unknown build error or setup failure"
             fi
           fi
-          
+
           curl -X POST "${{ github.event.inputs.webhook_url }}" \
             -H "Content-Type: application/json" \
             -d @- <<EOF
